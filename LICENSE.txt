@@ -1,0 +1,7 @@
+Copyright (c) 2025 Diddier Puño
+
+Este proyecto es propiedad privada y parte de un videojuego comercial en desarrollo.
+
+Está prohibido copiar, modificar, distribuir o reutilizar este código o contenido sin el permiso expreso del autor.
+
+Todos los derechos reservados.
