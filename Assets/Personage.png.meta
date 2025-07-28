@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 50a064d0761f74164bd88d827444e19d
+guid: 7dbb3f3e2f2884a73b7d2b517a9c736f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -4429422781600371437
-    second: Personage R 1_0
+      213: -6304073891134265770
+    second: Personage_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Personage R 1_0
+      name: Personage_0
       rect:
         serializedVersion: 2
-        x: 207
+        x: 271
         y: 31
-        width: 674
-        height: 962
+        width: 578
+        height: 946
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 31defaeb2778782c0800000000000000
-      internalID: -4429422781600371437
+      spriteID: 656a029423e6388a0800000000000000
+      internalID: -6304073891134265770
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Personage R 1_0: -4429422781600371437
+      Personage_0: -6304073891134265770
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
