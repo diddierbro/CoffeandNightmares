@@ -7,7 +7,7 @@ public class Chr_Shooting : MonoBehaviour
     private Vector3 mousePosition;
     [SerializeField]
     private GameObject bulletPrefab;
-
+    public Transform rotationObject;
     public Transform bulletSpawnPoint;
     public bool canShoot;
     private float timer;
@@ -31,7 +31,7 @@ public class Chr_Shooting : MonoBehaviour
 
         float angle = Mathf.Atan2(rotation.y, rotation.x) * Mathf.Rad2Deg;
 
-        transform.rotation = Quaternion.Euler(0, 0, angle);
+        rotationObject.rotation = Quaternion.Euler(0, 0, angle);
 
         if (!canShoot)
         {

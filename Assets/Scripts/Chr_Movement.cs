@@ -6,8 +6,27 @@ public class Chr_Movement : MonoBehaviour
     private Rigidbody2D rb;
     private Animator animator;
 
-    public float moveSpeed;
+    [Header("Ground Check")]
+    public Transform groundCheck;
+    public float groundCheckRadius = 0.2f;
+    public LayerMask groundLayer;
 
+    [Header("Coyote Time")]
+    public float coyoteTime = 0.2f;
+    private float coyoteTimeCounter;
+
+    private bool isGrounded;
+
+    [Header("Movement Settings")]
+    public float moveSpeed = 8f;
+
+    [Header("Jump Settings")]
+    public float jumpForce = 14f;
+
+    private float moveInput;
+    private bool jumpPressed;
+
+    [Header("Stress System (Temporarily Disabled)")]
     public bool isMediumStress = false;
     public bool isHighStress = false;
 
@@ -23,37 +42,52 @@ public class Chr_Movement : MonoBehaviour
     {
         if (freezed)
         {
-            rb.velocity = Vector2.zero;
             animator.SetFloat("Speed", 0f);
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.D))
-        {
-            TryTriggerFreeze();
-        }
+        // Ground check
+        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
-        if (Input.GetKey(KeyCode.A))
-        {
-            rb.velocity = new Vector2(-moveSpeed, rb.velocity.y);
-        }
-        else if (Input.GetKey(KeyCode.D))
-        {
-            rb.velocity = new Vector2(moveSpeed, rb.velocity.y);
-        }
+        if (isGrounded)
+            coyoteTimeCounter = coyoteTime;
         else
+            coyoteTimeCounter -= Time.deltaTime;
+
+        // Get horizontal input
+        moveInput = 0f;
+        if (Input.GetKey(KeyCode.A)) moveInput = -1f;
+        else if (Input.GetKey(KeyCode.D)) moveInput = 1f;
+
+        // Handle jump input
+        if (Input.GetKeyDown(KeyCode.Space))
         {
-            rb.velocity = new Vector2(0, rb.velocity.y);
+            jumpPressed = true;
         }
 
-        // ACTUALIZA EL SPEED CON VELOCIDAD CORRECTA
-        float speed = Mathf.Abs(rb.velocity.x);
-        animator.SetFloat("Speed", speed);
-
-        // Debug opcional:
-        Debug.Log("Speed: " + speed);
+        // Update animation speed based on horizontal movement
+        float animSpeed = Mathf.Abs(rb.linearVelocity.x);
+        animator.SetFloat("Speed", animSpeed);
     }
 
+    void FixedUpdate()
+    {
+        if (freezed) return;
+
+        // Apply horizontal movement
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+
+        // Apply jump
+        if (jumpPressed && coyoteTimeCounter > 0f)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            coyoteTimeCounter = 0f;
+        }
+        jumpPressed = false;
+    }
+
+    // Future stress system (currently disabled)
+    /*
     void TryTriggerFreeze()
     {
         int chance = -1;
@@ -70,13 +104,23 @@ public class Chr_Movement : MonoBehaviour
             }
         }
     }
+    */
 
     IEnumerator FreezeForSeconds(float seconds)
     {
         freezed = true;
-        rb.velocity = Vector2.zero;
+        rb.linearVelocity = Vector2.zero;
         animator.SetFloat("Speed", 0f);
         yield return new WaitForSeconds(seconds);
         freezed = false;
     }
+
+    void OnDrawGizmosSelected()
+{
+    if (groundCheck != null)
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+    }
+}
 }
