@@ -5,12 +5,22 @@ public class Chr_Movement : MonoBehaviour
 {
     private Rigidbody2D rb;
     private Animator animator;
-    private bool wasGroundedLastFrame;
 
     [Header("Ground Check")]
     public Transform groundCheck;
     public float groundCheckRadius = 0.2f;
     public LayerMask groundLayer;
+
+    private bool isGrounded;
+    private bool wasGroundedLastFrame;
+
+    [Header("Movement Settings")]
+    public float moveSpeed = 8f;
+    private float moveInput;
+
+    [Header("Jump Settings")]
+    public float jumpForce = 14f;
+    private bool jumpStarted;
 
     [Header("Jump Buffer")]
     public float jumpBufferTime = 0.15f;
@@ -20,36 +30,27 @@ public class Chr_Movement : MonoBehaviour
     public float coyoteTime = 0.2f;
     private float coyoteTimeCounter;
 
-    private bool isGrounded;
-
-    [Header("Movement Settings")]
-    public float moveSpeed = 8f;
-
-    [Header("Jump Settings")]
-    public float jumpForce = 14f;
-
     [Header("Apex Float")]
     public float hangTimeGravityScale = 0.5f;
     public float hangTimeVelocityThreshold = 0.25f;
-
     private float originalGravityScale;
 
-    [Tooltip("Multiplier to reduce upward velocity when jump is released early")]
-    public float jumpCutMultiplier = 0.5f;
-
-    private float moveInput;
+    [Header("Jump Cut via Gravity")]
+    public float jumpCutGravityMultiplier = 3f;
+    public float jumpCutTimeWindow = 0.2f;
+    private float jumpCutTimer;
+    private bool jumpCutQueued;
+    private bool jumpReleasedBeforeJump;
 
     [Header("Stress System (Temporarily Disabled)")]
     public bool isMediumStress = false;
     public bool isHighStress = false;
-
     public bool freezed = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
-
         originalGravityScale = rb.gravityScale;
     }
 
@@ -64,19 +65,24 @@ public class Chr_Movement : MonoBehaviour
         // Ground check
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
+        // Coyote time
         if (isGrounded)
+        {
             coyoteTimeCounter = coyoteTime;
+        }
         else
+        {
             coyoteTimeCounter -= Time.deltaTime;
+        }
 
-        // Track if grounded last frame
         wasGroundedLastFrame = isGrounded;
-        // Get horizontal input
+
+        // Horizontal input
         moveInput = 0f;
         if (Input.GetKey(KeyCode.A)) moveInput = -1f;
         else if (Input.GetKey(KeyCode.D)) moveInput = 1f;
 
-        // Handle jump input
+        // Jump input
         if (Input.GetKeyDown(KeyCode.Space))
         {
             jumpBufferCounter = jumpBufferTime;
@@ -86,14 +92,24 @@ public class Chr_Movement : MonoBehaviour
             jumpBufferCounter -= Time.deltaTime;
         }
 
-        
 
-        // Update animation speed based on horizontal movement
+        if (Input.GetKeyUp(KeyCode.Space))
+        {
+            if (jumpStarted && jumpCutTimer > 0f)
+            {
+                jumpCutQueued = true;
+            }
+
+            // Released jump before jump executed (used for buffered jumps)
+            if (!jumpStarted && jumpBufferCounter > 0f)
+            {
+                jumpReleasedBeforeJump = true;
+            }
+        }
+
+        // Animation
         float animSpeed = Mathf.Abs(rb.linearVelocity.x);
         animator.SetFloat("Speed", animSpeed);
-
-        
-
     }
 
     void FixedUpdate()
@@ -103,51 +119,55 @@ public class Chr_Movement : MonoBehaviour
         // Apply horizontal movement
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
 
-        // Apply jump
+        // Handle jump
         if (jumpBufferCounter > 0f && (isGrounded || wasGroundedLastFrame || coyoteTimeCounter > 0f))
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             jumpBufferCounter = 0f;
             coyoteTimeCounter = 0f;
+
+            jumpStarted = true;
+            jumpCutTimer = jumpCutTimeWindow;
+
+            // Reset state from previous jump
+            jumpCutQueued = false;
+
+            if (jumpReleasedBeforeJump)
+            {
+                jumpCutQueued = true;
+                jumpReleasedBeforeJump = false;
+            }
         }
 
-        // Variable Jump Height (Jump Cut)
-        if (Input.GetKeyUp(KeyCode.Space) && rb.linearVelocity.y > 0f)
+        // Update jump cut timer
+        if (jumpStarted && jumpCutTimer > 0f)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * jumpCutMultiplier);
+            jumpCutTimer -= Time.fixedDeltaTime;
         }
 
-        // Apex Float (Hang Time)
-        if (!isGrounded && Mathf.Abs(rb.linearVelocity.y) < hangTimeVelocityThreshold)
+        // Gravity handling
+        if (jumpCutQueued && rb.linearVelocity.y > 0f)
         {
-            rb.gravityScale = hangTimeGravityScale;
+            rb.gravityScale = originalGravityScale * jumpCutGravityMultiplier;
+        }
+        else if (!isGrounded && Mathf.Abs(rb.linearVelocity.y) < hangTimeVelocityThreshold && Input.GetKey(KeyCode.Space) && !jumpCutQueued)
+        {
+            rb.gravityScale = hangTimeGravityScale; // Apex float
         }
         else
         {
             rb.gravityScale = originalGravityScale;
         }
 
-    }
-
-    // Future stress system (currently disabled)
-    /*
-    void TryTriggerFreeze()
-    {
-        int chance = -1;
-
-        if (isHighStress) chance = 5;
-        else if (isMediumStress) chance = 10;
-
-        if (chance > 0)
+        // Reset jump flags on landing
+        if (isGrounded && rb.linearVelocity.y <= 0f)
         {
-            int roll = Random.Range(1, chance + 1);
-            if (roll == 1)
-            {
-                StartCoroutine(FreezeForSeconds(5f));
-            }
+            jumpStarted = false;
+            jumpCutQueued = false;
+            jumpCutTimer = 0f;
+            jumpReleasedBeforeJump = false;
         }
     }
-    */
 
     IEnumerator FreezeForSeconds(float seconds)
     {
