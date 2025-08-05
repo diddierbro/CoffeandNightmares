@@ -20,7 +20,7 @@ public class Chr_Movement : MonoBehaviour
 
     [Header("Jump Settings")]
     public float jumpForce = 14f;
-    private bool jumpStarted;
+    [SerializeField] private bool jumpStarted;
 
     [Header("Jump Buffer")]
     public float jumpBufferTime = 0.15f;
@@ -30,17 +30,12 @@ public class Chr_Movement : MonoBehaviour
     public float coyoteTime = 0.2f;
     private float coyoteTimeCounter;
 
-    [Header("Apex Float")]
-    public float hangTimeGravityScale = 0.5f;
-    public float hangTimeVelocityThreshold = 0.25f;
-    private float originalGravityScale;
-
     [Header("Jump Cut via Gravity")]
     public float jumpCutGravityMultiplier = 3f;
-    public float jumpCutTimeWindow = 0.2f;
-    private float jumpCutTimer;
     private bool jumpCutQueued;
     private bool jumpReleasedBeforeJump;
+
+    private float originalGravityScale;
 
     [Header("Stress System (Temporarily Disabled)")]
     public bool isMediumStress = false;
@@ -62,27 +57,39 @@ public class Chr_Movement : MonoBehaviour
             return;
         }
 
-        // Ground check
+        HandleGroundCheck();
+        HandleInput();
+        HandleAnimations();
+    }
+
+    void FixedUpdate()
+    {
+        
+
+        HandleMovement();
+        HandleJump();
+        HandleGravity();
+        HandleLandingReset();
+    }
+
+    // === UPDATE METHODS ===
+
+    void HandleGroundCheck()
+    {
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
-        // Coyote time
         if (isGrounded)
-        {
             coyoteTimeCounter = coyoteTime;
-        }
         else
-        {
             coyoteTimeCounter -= Time.deltaTime;
-        }
 
         wasGroundedLastFrame = isGrounded;
+    }
 
-        // Horizontal input
-        moveInput = 0f;
-        if (Input.GetKey(KeyCode.A)) moveInput = -1f;
-        else if (Input.GetKey(KeyCode.D)) moveInput = 1f;
+    void HandleInput()
+    {
+        moveInput = Input.GetAxisRaw("Horizontal");
 
-        // Jump input
         if (Input.GetKeyDown(KeyCode.Space))
         {
             jumpBufferCounter = jumpBufferTime;
@@ -92,34 +99,35 @@ public class Chr_Movement : MonoBehaviour
             jumpBufferCounter -= Time.deltaTime;
         }
 
-
         if (Input.GetKeyUp(KeyCode.Space))
         {
-            if (jumpStarted && jumpCutTimer > 0f)
+            if (jumpStarted)
             {
                 jumpCutQueued = true;
             }
 
-            // Released jump before jump executed (used for buffered jumps)
             if (!jumpStarted && jumpBufferCounter > 0f)
             {
                 jumpReleasedBeforeJump = true;
             }
         }
+    }
 
-        // Animation
+    void HandleAnimations()
+    {
         float animSpeed = Mathf.Abs(rb.linearVelocity.x);
         animator.SetFloat("Speed", animSpeed);
     }
 
-    void FixedUpdate()
+    // === FIXEDUPDATE METHODS ===
+
+    void HandleMovement()
     {
-        if (freezed) return;
-
-        // Apply horizontal movement
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+    }
 
-        // Handle jump
+    void HandleJump()
+    {
         if (jumpBufferCounter > 0f && (isGrounded || wasGroundedLastFrame || coyoteTimeCounter > 0f))
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
@@ -127,9 +135,6 @@ public class Chr_Movement : MonoBehaviour
             coyoteTimeCounter = 0f;
 
             jumpStarted = true;
-            jumpCutTimer = jumpCutTimeWindow;
-
-            // Reset state from previous jump
             jumpCutQueued = false;
 
             if (jumpReleasedBeforeJump)
@@ -138,36 +143,34 @@ public class Chr_Movement : MonoBehaviour
                 jumpReleasedBeforeJump = false;
             }
         }
+    }
 
-        // Update jump cut timer
-        if (jumpStarted && jumpCutTimer > 0f)
-        {
-            jumpCutTimer -= Time.fixedDeltaTime;
-        }
+    void HandleGravity()
+    {
+        float targetGravity = originalGravityScale;
 
-        // Gravity handling
         if (jumpCutQueued && rb.linearVelocity.y > 0f)
         {
-            rb.gravityScale = originalGravityScale * jumpCutGravityMultiplier;
-        }
-        else if (!isGrounded && Mathf.Abs(rb.linearVelocity.y) < hangTimeVelocityThreshold && Input.GetKey(KeyCode.Space) && !jumpCutQueued)
-        {
-            rb.gravityScale = hangTimeGravityScale; // Apex float
-        }
-        else
-        {
-            rb.gravityScale = originalGravityScale;
+            targetGravity = originalGravityScale * jumpCutGravityMultiplier;
         }
 
-        // Reset jump flags on landing
+        if (rb.gravityScale != targetGravity)
+        {
+            rb.gravityScale = targetGravity;
+        }
+    }
+
+    void HandleLandingReset()
+    {
         if (isGrounded && rb.linearVelocity.y <= 0f)
         {
             jumpStarted = false;
             jumpCutQueued = false;
-            jumpCutTimer = 0f;
             jumpReleasedBeforeJump = false;
         }
     }
+
+    // === FREEZE SYSTEM ===
 
     IEnumerator FreezeForSeconds(float seconds)
     {
