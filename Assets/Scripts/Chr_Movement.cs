@@ -27,6 +27,13 @@ public class Chr_Movement : MonoBehaviour
 
     [Header("Jump Settings")]
     public float jumpForce = 14f;
+
+    [Header("Apex Float")]
+    public float hangTimeGravityScale = 0.5f;
+    public float hangTimeVelocityThreshold = 0.25f;
+
+    private float originalGravityScale;
+
     [Tooltip("Multiplier to reduce upward velocity when jump is released early")]
     public float jumpCutMultiplier = 0.5f;
 
@@ -42,6 +49,8 @@ public class Chr_Movement : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
+
+        originalGravityScale = rb.gravityScale;
     }
 
     void Update()
@@ -77,15 +86,14 @@ public class Chr_Movement : MonoBehaviour
             jumpBufferCounter -= Time.deltaTime;
         }
 
-        // Variable Jump Height (Jump Cut)
-        if (Input.GetKeyUp(KeyCode.Space) && rb.linearVelocity.y > 0f)
-        {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * jumpCutMultiplier);
-        }
+        
 
         // Update animation speed based on horizontal movement
         float animSpeed = Mathf.Abs(rb.linearVelocity.x);
         animator.SetFloat("Speed", animSpeed);
+
+        
+
     }
 
     void FixedUpdate()
@@ -101,6 +109,22 @@ public class Chr_Movement : MonoBehaviour
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             jumpBufferCounter = 0f;
             coyoteTimeCounter = 0f;
+        }
+
+        // Variable Jump Height (Jump Cut)
+        if (Input.GetKeyUp(KeyCode.Space) && rb.linearVelocity.y > 0f)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * jumpCutMultiplier);
+        }
+
+        // Apex Float (Hang Time)
+        if (!isGrounded && Mathf.Abs(rb.linearVelocity.y) < hangTimeVelocityThreshold)
+        {
+            rb.gravityScale = hangTimeGravityScale;
+        }
+        else
+        {
+            rb.gravityScale = originalGravityScale;
         }
 
     }
